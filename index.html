@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+  <meta charset="UTF-8" />
+  <title>Lääkelaskuharjoittelu</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #2e2e2e;
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    #app {
+      background-color: #3f3f3f;
+      padding: 40px;
+      border-radius: 20px;
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
+      width: 100%;
+      max-width: 600px;
+      text-align: center;
+    }
+    h1 {
+      margin-bottom: 30px;
+      font-size: 32px;
+    }
+    button {
+      background-color: #007bff;
+      color: white;
+      border: none;
+      padding: 20px 40px;
+      margin: 15px;
+      font-size: 20px;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    input[type="number"] {
+      padding: 15px;
+      font-size: 18px;
+      width: 100%;
+      margin-top: 20px;
+      border-radius: 10px;
+      border: none;
+      background-color: #555;
+      color: white;
+    }
+    .success {
+      color: #28a745;
+      font-weight: bold;
+      margin-top: 15px;
+    }
+    .error {
+      color: #dc3545;
+      font-weight: bold;
+      margin-top: 15px;
+    }
+    .hidden {
+      display: none;
+    }
+    .button-group {
+      margin-top: 20px;
+    }
+    #task {
+      font-size: 22px;
+      margin-bottom: 20px;
+    }
+    #progress-bar {
+      width: 100%;
+      background-color: #555;
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 20px;
+      height: 20px;
+    }
+    #progress {
+      height: 100%;
+      background-color: #28a745;
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <h1>Lääkelaskuharjoittelu</h1>
+
+    <div id="start-screen">
+      <p style="font-size: 20px; margin-bottom: 20px;">Valitse vaikeustaso:</p>
+      <button onclick="startQuiz('easy')">Helppo</button>
+      <button onclick="startQuiz('medium')">Keskitaso</button>
+      <button onclick="startQuiz('hard')">Vaikea</button>
+    </div>
+
+    <div id="quiz-screen" class="hidden">
+      <div id="progress-bar"><div id="progress"></div></div>
+      <div id="task"></div>
+      <input type="number" id="answer" placeholder="Syötä vastauksesi" step="any" />
+      <button onclick="checkAnswer()">Tarkista</button>
+
+      <div id="result" class="hidden"></div>
+      <div class="button-group hidden" id="retry-options">
+        <button onclick="showSolution()">Näytä ratkaisu</button>
+        <button onclick="retryTask()">Yritä uudelleen</button>
+      </div>
+      <div class="button-group hidden" id="next-button">
+        <button onclick="newTask()">Seuraava</button>
+      </div>
+      <div id="solution" class="hidden" style="margin-top: 15px;"></div>
+    </div>
+  </div>
+
+  <!-- Ääniefektit -->
+  <audio id="success-sound" src="https://cdn.pixabay.com/audio/2022/03/15/audio_5ac0f97430.mp3"></audio>
+  <audio id="fail-sound" src="https://cdn.pixabay.com/audio/2022/03/15/audio_6f0d2d18f3.mp3"></audio>
+
+  <script>
+    const tasks = {
+      easy: [
+        {
+          question: "Laske: 2 mg × 5",
+          correctAnswer: 10,
+          explanation: "2 mg × 5 = 10 mg"
+        },
+        {
+          question: "Laske: 10 mg ÷ 2",
+          correctAnswer: 5,
+          explanation: "10 mg ÷ 2 = 5 mg"
+        }
+      ],
+      medium: [
+        {
+          question: "Laske: 3 mg/kg × 4 kg",
+          correctAnswer: 12,
+          explanation: "3 mg/kg × 4 kg = 12 mg"
+        },
+        {
+          question: "Laske: 50 mg / 5",
+          correctAnswer: 10,
+          explanation: "50 mg / 5 = 10 mg"
+        }
+      ],
+      hard: [
+        {
+          question: "Laske: 0.5 mg/kg × 70 kg",
+          correctAnswer: 35,
+          explanation: "0.5 mg/kg × 70 kg = 35 mg"
+        },
+        {
+          question: "Laske: 250 mg / 2.5",
+          correctAnswer: 100,
+          explanation: "250 mg / 2.5 = 100 mg"
+        }
+      ]
+    };
+
+    let currentTask;
+    let currentLevel;
+    let score = 0;
+    let totalTasks = 0;
+
+    function updateProgressBar() {
+      const progressEl = document.getElementById("progress");
+      const percentage = totalTasks > 0 ? (score / totalTasks) * 100 : 0;
+      progressEl.style.width = percentage + "%";
+    }
+
+    function startQuiz(level) {
+      currentLevel = level;
+      score = 0;
+      totalTasks = 0;
+      updateProgressBar();
+      document.getElementById("start-screen").classList.add("hidden");
+      document.getElementById("quiz-screen").classList.remove("hidden");
+      newTask();
+    }
+
+    function newTask() {
+      document.getElementById("result").classList.add("hidden");
+      document.getElementById("solution").classList.add("hidden");
+      document.getElementById("retry-options").classList.add("hidden");
+      document.getElementById("next-button").classList.add("hidden");
+      document.getElementById("answer").value = "";
+
+      const levelTasks = tasks[currentLevel];
+      currentTask = levelTasks[Math.floor(Math.random() * levelTasks.length)];
+      document.getElementById("task").innerText = currentTask.question;
+    }
+
+    function checkAnswer() {
+      const userAnswer = parseFloat(document.getElementById("answer").value);
+      const isCorrect = Math.abs(userAnswer - currentTask.correctAnswer) < 0.01;
+      const resultEl = document.getElementById("result");
+      const successSound = document.getElementById("success-sound");
+      const failSound = document.getElementById("fail-sound");
+
+      totalTasks++;
+      if (isCorrect) {
+        score++;
+        resultEl.innerText = "Oikein! Hienoa työtä!";
+        resultEl.className = "success";
+        document.getElementById("retry-options").classList.add("hidden");
+        document.getElementById("next-button").classList.remove("hidden");
+        successSound.play();
+      } else {
+        resultEl.innerText = "Kaikki ei tainnut mennä nappiin...";
+        resultEl.className = "error";
+        document.getElementById("retry-options").classList.remove("hidden");
+        document.getElementById("next-button").classList.add("hidden");
+        failSound.play();
+      }
+      resultEl.classList.remove("hidden");
+      updateProgressBar();
+    }
+
+    function showSolution() {
+      const solutionEl = document.getElementById("solution");
+      solutionEl.innerText = currentTask.explanation;
+      solutionEl.classList.remove("hidden");
+    }
+
+    function retryTask() {
+      document.getElementById("answer").value = "";
+      document.getElementById("result").classList.add("hidden");
+      document.getElementById("solution").classList.add("hidden");
+      document.getElementById("retry-options").classList.add("hidden");
+      document.getElementById("next-button").classList.add("hidden");
+    }
+  </script>
+</body>
+</html>
